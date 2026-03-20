@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -111,9 +111,76 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
             </svg>
-            GLAUCOMA RISK ANALYSIS
+            Risk Analysis
           </button>
           <button id="btn-sample-reset" class="btn btn-ghost">Reset Sample</button>
+        </div>
+        <!-- Sample vessel button -->
+        <button id="btn-sample-vessel" class="btn btn-vessel btn-lg" style="display:none">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2C12 2 8 6 8 12C8 18 12 22 12 22" />
+            <path d="M12 2C12 2 16 6 16 12C16 18 12 22 12 22" />
+            <path d="M6 8C6 8 9 10 12 10C15 10 18 8 18 8" />
+            <path d="M6 16C6 16 9 14 12 14C15 14 18 16 18 16" />
+          </svg>
+          Extract Vessel Map
+        </button>
+
+        <!-- Sample vessel loader -->
+        <div class="vessel-loader" id="sample-vessel-loader" style="display:none">
+          <div class="spinner"></div>
+          <p>Segmenting blood vessels&hellip;</p>
+        </div>
+
+        <!-- Sample vessel result card -->
+        <div class="vessel-card" id="sample-vessel-result" style="display:none">
+          <h3>Vessel Segmentation Map</h3>
+          <div class="vessel-images">
+            <div class="vessel-img-wrap">
+              <figure>
+                <img id="sample-vessel-overlay" alt="Vessel overlay" />
+                <figcaption>VESSEL OVERLAY</figcaption>
+              </figure>
+            </div>
+            <div class="vessel-img-wrap">
+              <figure>
+                <img id="sample-vessel-binary" alt="Binary vessel mask" />
+                <figcaption>BINARY VESSEL MASK</figcaption>
+              </figure>
+            </div>
+          </div>
+          <div class="vessel-stats">
+            <div class="stat-pill">
+              <span class="stat-label">Vessel Density</span>
+              <span class="stat-val" id="sample-density">—</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">Vessel Pixels</span>
+              <span class="stat-val" id="sample-pixels">—</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">Image Size</span>
+              <span class="stat-val" id="sample-size">—</span>
+            </div>
+          </div>
+          <div class="controls">
+            <a id="btn-sample-vessel-overlay-dl" class="btn btn-primary" download="vessel_overlay.png">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download Overlay
+            </a>
+            <a id="btn-sample-vessel-binary-dl" class="btn btn-ghost" download="vessel_mask.png">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download Mask
+            </a>
+          </div>
         </div>
       </div>
 
@@ -129,12 +196,13 @@
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
-          <h3>GLAUCOMA RISK ANALYSIS</h3>
+          <h3>Risk Analysis</h3>
         </div>
         <div class="screen-result-body">
           <div class="result-wrap">
             <img id="sample-screen-img" alt="Annotated screening result" />
           </div>
+
           <div class="screen-prediction">
             <div class="screen-disease">
               <span class="screen-label">Prediction</span>
@@ -148,8 +216,51 @@
               <span class="screen-confidence-value" id="sample-screen-confidence">0%</span>
             </div>
             <div class="screen-probs" id="sample-screen-probs"></div>
+            <div class="screen-severity-wrap">
+              <span class="screen-label">Risk Level</span>
+              <div class="screen-severity-badge" id="sample-screen-severity-badge">--</div>
+              <div class="screen-severity-gauge">
+                <div class="screen-severity-gauge-fill" id="sample-screen-severity-gauge-fill"></div>
+                <div class="screen-severity-marker" id="sample-screen-severity-marker"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Optic Disc Parameters -->
+          <div class="optic-params" id="sample-optic-params" style="display:none">
+            <h4>Optic disc parameters</h4>
+            <div class="param-row"><span class="param-label">Disc area</span><span class="param-value" id="sample-disc-area">—<span class="param-unit">mm&sup2;</span></span></div>
+            <div class="param-row"><span class="param-label">Cup area</span><span class="param-value" id="sample-cup-area">—<span class="param-unit">mm&sup2;</span></span></div>
+            <div class="param-row"><span class="param-label">Cup volume</span><span class="param-value" id="sample-cup-volume">—<span class="param-unit">mm&sup3;</span></span></div>
+            <div class="param-row"><span class="param-label">Rim area</span><span class="param-value" id="sample-rim-area">—<span class="param-unit">mm&sup2;</span></span></div>
+            <div class="param-row"><span class="param-label">C/D Ratio</span><span class="param-value" id="sample-cd-ratio">—</span></div>
+
+            <div class="ddls-section">
+              <div class="ddls-header">
+                <div>
+                  <span class="ddls-label">DDLS</span>
+                  <span class="ddls-sublabel">(disc damage likelihood scale)</span>
+                </div>
+                <span class="ddls-value" id="sample-ddls-val">—</span>
+              </div>
+              <div class="ddls-bar">
+                <div class="ddls-marker" id="sample-ddls-marker" style="left:0%">&#9660;</div>
+                <div class="ddls-gradient"></div>
+              </div>
+              <div class="ddls-labels"><span>1</span><span>10</span></div>
+            </div>
           </div>
         </div>
+
+        <!-- Risk banner -->
+        <div class="screen-risk-banner" id="sample-risk-banner" style="display:none">
+          <div class="risk-icon">!</div>
+          <div>
+            <div class="risk-title" id="sample-risk-title">At Risk</div>
+            <div class="risk-text" id="sample-risk-text"></div>
+          </div>
+        </div>
+
         <div class="controls">
           <a id="btn-sample-screen-download" class="btn btn-primary" download="screening_result.png">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -276,6 +387,74 @@
         </button>
         <button id="btn-restart" class="btn btn-ghost">Start Over</button>
       </div>
+
+      <!-- Custom vessel button -->
+      <button id="btn-custom-vessel" class="btn btn-vessel btn-lg" style="display:none">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2C12 2 8 6 8 12C8 18 12 22 12 22" />
+          <path d="M12 2C12 2 16 6 16 12C16 18 12 22 12 22" />
+          <path d="M6 8C6 8 9 10 12 10C15 10 18 8 18 8" />
+          <path d="M6 16C6 16 9 14 12 14C15 14 18 16 18 16" />
+        </svg>
+        Extract Vessel Map
+      </button>
+
+      <!-- Custom vessel loader -->
+      <div class="vessel-loader" id="custom-vessel-loader" style="display:none">
+        <div class="spinner"></div>
+        <p>Segmenting blood vessels&hellip;</p>
+      </div>
+
+      <!-- Custom vessel result card -->
+      <div class="vessel-card" id="custom-vessel-result" style="display:none">
+        <h3>Vessel Segmentation Map</h3>
+        <div class="vessel-images">
+          <div class="vessel-img-wrap">
+            <figure>
+              <img id="custom-vessel-overlay" alt="Vessel overlay" />
+              <figcaption>VESSEL OVERLAY</figcaption>
+            </figure>
+          </div>
+          <div class="vessel-img-wrap">
+            <figure>
+              <img id="custom-vessel-binary" alt="Binary vessel mask" />
+              <figcaption>BINARY VESSEL MASK</figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="vessel-stats">
+          <div class="stat-pill">
+            <span class="stat-label">Vessel Density</span>
+            <span class="stat-val" id="custom-density">—</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-label">Vessel Pixels</span>
+            <span class="stat-val" id="custom-pixels">—</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-label">Image Size</span>
+            <span class="stat-val" id="custom-size">—</span>
+          </div>
+        </div>
+        <div class="controls">
+          <a id="btn-custom-vessel-overlay-dl" class="btn btn-primary" download="vessel_overlay.png">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Overlay
+          </a>
+          <a id="btn-custom-vessel-binary-dl" class="btn btn-ghost" download="vessel_mask.png">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Mask
+          </a>
+        </div>
+      </div>
     </section>
 
     <!-- Screening Loader -->
@@ -291,11 +470,12 @@
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       </div>
-      <h2>Disease Screening Result</h2>
+      <h2>Glaucoma Risk Analysis</h2>
       <div class="screen-result-body">
         <div class="result-wrap">
           <img id="screen-result-img" alt="Annotated screening result" />
         </div>
+
         <div class="screen-prediction">
           <div class="screen-disease">
             <span class="screen-label">Prediction</span>
@@ -309,8 +489,51 @@
             <span class="screen-confidence-value" id="screen-confidence">0%</span>
           </div>
           <div class="screen-probs" id="screen-probs"></div>
+          <div class="screen-severity-wrap">
+            <span class="screen-label">Risk Level</span>
+            <div class="screen-severity-badge" id="screen-severity-badge">--</div>
+            <div class="screen-severity-gauge">
+              <div class="screen-severity-gauge-fill" id="screen-severity-gauge-fill"></div>
+              <div class="screen-severity-marker" id="screen-severity-marker"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optic Disc Parameters -->
+        <div class="optic-params" id="custom-optic-params" style="display:none">
+          <h4>Optic disc parameters</h4>
+          <div class="param-row"><span class="param-label">Disc area</span><span class="param-value" id="custom-disc-area">—<span class="param-unit">mm&sup2;</span></span></div>
+          <div class="param-row"><span class="param-label">Cup area</span><span class="param-value" id="custom-cup-area">—<span class="param-unit">mm&sup2;</span></span></div>
+          <div class="param-row"><span class="param-label">Cup volume</span><span class="param-value" id="custom-cup-volume">—<span class="param-unit">mm&sup3;</span></span></div>
+          <div class="param-row"><span class="param-label">Rim area</span><span class="param-value" id="custom-rim-area">—<span class="param-unit">mm&sup2;</span></span></div>
+          <div class="param-row"><span class="param-label">C/D Ratio</span><span class="param-value" id="custom-cd-ratio">—</span></div>
+
+          <div class="ddls-section">
+            <div class="ddls-header">
+              <div>
+                <span class="ddls-label">DDLS</span>
+                <span class="ddls-sublabel">(disc damage likelihood scale)</span>
+              </div>
+              <span class="ddls-value" id="custom-ddls-val">—</span>
+            </div>
+            <div class="ddls-bar">
+              <div class="ddls-marker" id="custom-ddls-marker" style="left:0%">&#9660;</div>
+              <div class="ddls-gradient"></div>
+            </div>
+            <div class="ddls-labels"><span>1</span><span>10</span></div>
+          </div>
         </div>
       </div>
+
+      <!-- Risk banner -->
+      <div class="screen-risk-banner" id="custom-risk-banner" style="display:none">
+        <div class="risk-icon">!</div>
+        <div>
+          <div class="risk-title" id="custom-risk-title">At Risk</div>
+          <div class="risk-text" id="custom-risk-text"></div>
+        </div>
+      </div>
+
       <div class="controls">
         <a id="btn-screen-download" class="btn btn-primary" download="screening_result.png">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">

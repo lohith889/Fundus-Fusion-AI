@@ -13,12 +13,15 @@ import cv2
 import numpy as np
 from flask import Blueprint, request, jsonify, send_from_directory
 
+import time
+
 from stitching.engine import (
     retina_preprocess,
     retina_detect_features,
     retina_match_features,
     retina_stitch_images,
 )
+from stitching.vessel_extraction import extract_vessel_map
 
 # Blueprint
 stitching_bp = Blueprint("stitching", __name__)
@@ -194,6 +197,42 @@ def visualize_features():
 
 
 # ─────────────────────────────────────────────
+# VESSEL EXTRACTION
+# ─────────────────────────────────────────────
+@stitching_bp.route("/process-vessel", methods=["POST"])
+def process_vessel():
+    data = request.get_json()
+    if not data or "image" not in data:
+        return jsonify({"success": False, "error": "No image received."}), 400
+
+    try:
+        img = decode_base64_image(data["image"])
+    except Exception:
+        return jsonify({"success": False, "error": "Failed to decode image."}), 400
+
+    if img is None:
+        return jsonify({"success": False, "error": "Failed to decode image."}), 400
+
+    try:
+        t0 = time.time()
+        result = extract_vessel_map(img, use_frangi=False)
+        ms = int((time.time() - t0) * 1000)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    vessel_map_b64 = _b64_encode_image(result["vessel_map"], ".png")
+    overlay_b64 = _b64_encode_image(result["overlay"], ".png")
+
+    return jsonify({
+        "success": True,
+        "vessel_map": vessel_map_b64,
+        "overlay": overlay_b64,
+        "stats": result["stats"],
+        "processing_time_ms": ms,
+    })
+
+
+# ─────────────────────────────────────────────
 # DISEASE SCREENING  (RETFound model)
 # ─────────────────────────────────────────────
 @stitching_bp.route("/screen", methods=["POST"])
@@ -231,6 +270,11 @@ def screen_disease():
             "probs": {
                 name: round(p * 100, 1)
                 for name, p in zip(["Normal", "Glaucoma"], prediction["probs"])
+            },
+            "severity": {
+                "level": prediction["severity_level"],
+                "label": prediction["severity_label"],
+                "glaucoma_probability": round(prediction["glaucoma_prob"] * 100, 1),
             },
         },
         "annotated_image": annotated_b64,

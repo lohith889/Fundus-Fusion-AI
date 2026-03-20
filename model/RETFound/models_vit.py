@@ -38,7 +38,7 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             x = blk(x)
 
         if self.custom_global_pool:
-            x = x[:, 1:, :].mean(dim=1,keepdim=True)  # global pool without cls token
+            x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
             outcome = self.fc_norm(x)
         else:
             if hasattr(self, 'norm'):
