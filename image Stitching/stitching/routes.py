@@ -194,6 +194,51 @@ def visualize_features():
 
 
 # ─────────────────────────────────────────────
+# DISEASE SCREENING  (RETFound model)
+# ─────────────────────────────────────────────
+@stitching_bp.route("/screen", methods=["POST"])
+def screen_disease():
+    """Run RETFound disease screening on a retinal image."""
+    from stitching.screening import predict_disease, annotate_image
+
+    data = request.get_json()
+    if not data or "image" not in data:
+        return jsonify({"success": False, "error": "No image received."}), 400
+
+    try:
+        img = decode_base64_image(data["image"])
+    except Exception:
+        return jsonify({"success": False, "error": "Failed to decode image."}), 400
+
+    if img is None:
+        return jsonify({"success": False, "error": "Failed to decode image."}), 400
+
+    try:
+        prediction = predict_disease(img)
+        annotated = annotate_image(img, prediction)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Screening error: {exc}"}), 500
+
+    out_name, annotated_b64 = _save_and_encode(annotated, "screened")
+
+    return jsonify({
+        "success": True,
+        "prediction": {
+            "class": prediction["class_name"],
+            "confidence": round(prediction["confidence"] * 100, 1),
+            "probs": {
+                name: round(p * 100, 1)
+                for name, p in zip(["Normal", "Glaucoma"], prediction["probs"])
+            },
+        },
+        "annotated_image": annotated_b64,
+        "filename": out_name,
+    })
+
+
+# ─────────────────────────────────────────────
 # SERVE OUTPUT FILES
 # ─────────────────────────────────────────────
 @stitching_bp.route("/outputs/<path:filename>")

@@ -107,7 +107,58 @@
             </svg>
             Download Mosaic
           </a>
+          <button id="btn-sample-screen" class="btn btn-accent btn-lg">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+            GLAUCOMA RISK ANALYSIS
+          </button>
           <button id="btn-sample-reset" class="btn btn-ghost">Reset Sample</button>
+        </div>
+      </div>
+
+      <!-- Sample screening loader -->
+      <div class="screen-loader" id="sample-screen-loader" style="display:none">
+        <div class="spinner"></div>
+        <p>Running RETFound disease screening&hellip; Loading AI model.</p>
+      </div>
+
+      <!-- Sample screening result -->
+      <div class="screen-result" id="sample-screen-result" style="display:none">
+        <div class="screen-result-header">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          <h3>GLAUCOMA RISK ANALYSIS</h3>
+        </div>
+        <div class="screen-result-body">
+          <div class="result-wrap">
+            <img id="sample-screen-img" alt="Annotated screening result" />
+          </div>
+          <div class="screen-prediction">
+            <div class="screen-disease">
+              <span class="screen-label">Prediction</span>
+              <span class="screen-class" id="sample-screen-class">—</span>
+            </div>
+            <div class="screen-confidence-wrap">
+              <span class="screen-label">Confidence</span>
+              <div class="screen-confidence-bar">
+                <div class="screen-confidence-fill" id="sample-screen-confidence-fill"></div>
+              </div>
+              <span class="screen-confidence-value" id="sample-screen-confidence">0%</span>
+            </div>
+            <div class="screen-probs" id="sample-screen-probs"></div>
+          </div>
+        </div>
+        <div class="controls">
+          <a id="btn-sample-screen-download" class="btn btn-primary" download="screening_result.png">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Report
+          </a>
         </div>
       </div>
 
@@ -217,7 +268,59 @@
           </svg>
           Download
         </a>
+        <button id="btn-screen" class="btn btn-accent btn-lg">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          Screen for Disease
+        </button>
         <button id="btn-restart" class="btn btn-ghost">Start Over</button>
+      </div>
+    </section>
+
+    <!-- Screening Loader -->
+    <section class="card loader-card" id="screen-loader-section" style="display:none;">
+      <div class="spinner"></div>
+      <p>Running RETFound AI screening&hellip; This may take a moment on first run.</p>
+    </section>
+
+    <!-- Screening Result -->
+    <section class="card screen-result-card" id="screen-result-section" style="display:none;">
+      <div class="step-badge done">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      </div>
+      <h2>Disease Screening Result</h2>
+      <div class="screen-result-body">
+        <div class="result-wrap">
+          <img id="screen-result-img" alt="Annotated screening result" />
+        </div>
+        <div class="screen-prediction">
+          <div class="screen-disease">
+            <span class="screen-label">Prediction</span>
+            <span class="screen-class" id="screen-class">—</span>
+          </div>
+          <div class="screen-confidence-wrap">
+            <span class="screen-label">Confidence</span>
+            <div class="screen-confidence-bar">
+              <div class="screen-confidence-fill" id="screen-confidence-fill"></div>
+            </div>
+            <span class="screen-confidence-value" id="screen-confidence">0%</span>
+          </div>
+          <div class="screen-probs" id="screen-probs"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <a id="btn-screen-download" class="btn btn-primary" download="screening_result.png">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Report
+        </a>
+        <button id="btn-restart-from-screen" class="btn btn-ghost">Start Over</button>
       </div>
     </section>
 
@@ -225,7 +328,8 @@
     <section class="card" id="viz-section" style="display:none;">
       <div class="step-badge done">&#11044;</div>
       <h2>Pipeline Visualization</h2>
-      <p class="hint">Intermediate steps of the stitching pipeline showing how features are detected and matched across images.</p>
+      <p class="hint">Intermediate steps of the stitching pipeline showing how features are detected and matched across
+        images.</p>
 
       <div class="viz-block">
         <div class="viz-block-header">

@@ -873,6 +873,139 @@ footer {
   letter-spacing: .5px;
 }
 
+/* ───────── Disease Screening ───────── */
+.screen-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.screen-result { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--glass-border); }
+
+.screen-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.screen-result-header svg { color: var(--accent); }
+.screen-result-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+
+.screen-result-card {
+  border-color: rgba(232,93,58,.35);
+  background: linear-gradient(135deg, rgba(16,24,34,.65) 0%, rgba(30,20,18,.45) 100%);
+}
+
+.screen-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.screen-prediction {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  background: rgba(10,14,22,.5);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+}
+
+.screen-disease { display: flex; justify-content: space-between; align-items: center; }
+.screen-label {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
+.screen-class {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+.screen-class-safe   { color: var(--success); text-shadow: 0 0 16px rgba(34,184,142,.3); }
+.screen-class-danger { color: var(--danger);  text-shadow: 0 0 16px rgba(224,85,85,.3);  }
+
+.screen-confidence-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.screen-confidence-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(30,48,64,.6);
+  overflow: hidden;
+}
+
+.screen-confidence-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 5px;
+  transition: width .8s cubic-bezier(.4,0,.2,1);
+}
+.screen-confidence-safe   { background: linear-gradient(90deg, var(--primary), var(--success)); }
+.screen-confidence-danger { background: linear-gradient(90deg, var(--accent), var(--danger));   }
+
+.screen-confidence-value {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 48px;
+  text-align: right;
+}
+
+.screen-probs { margin-top: 8px; }
+
+.screen-prob-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+}
+
+.screen-prob-name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+.screen-prob-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(30,48,64,.6);
+  overflow: hidden;
+}
+
+.screen-prob-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .8s cubic-bezier(.4,0,.2,1);
+}
+.prob-safe   { background: linear-gradient(90deg, var(--primary), var(--success)); }
+.prob-danger { background: linear-gradient(90deg, var(--accent), var(--danger));   }
+
+.screen-prob-value {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 42px;
+  text-align: right;
+}
+.screen-prob-value.active { color: var(--text); }
+
 /* ───────── Responsive ───────── */
 @media(max-width:600px) {
   main {

@@ -12,21 +12,24 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """ Vision Transformer with support for global average pooling
     """
     def __init__(self, global_pool=False, **kwargs):
+        # timm 0.9 expects global_pool as a string ('token', 'avg'), not a bool.
+        # We pop it so we use the default timm behaviour ('token') and handle our own pooling.
+        kwargs.pop('global_pool', None)
         super(VisionTransformer, self).__init__(**kwargs)
 
-        self.global_pool = global_pool
-        if self.global_pool:
-            norm_layer = kwargs['norm_layer']
+        self.custom_global_pool = global_pool
+        if self.custom_global_pool:
+            norm_layer = kwargs.get('norm_layer', partial(nn.LayerNorm, eps=1e-6))
             embed_dim = kwargs['embed_dim']
             self.fc_norm = norm_layer(embed_dim)
+            if hasattr(self, 'norm'):
+                del self.norm  # remove the original norm
 
-            del self.norm  # remove the original norm
-
-    def forward_features(self, x):
+    def forward_features(self, x, **kwargs):
         B = x.shape[0]
         x = self.patch_embed(x)
 
-        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
+        cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
         x = x + self.pos_embed
         x = self.pos_drop(x)
@@ -34,14 +37,22 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         for blk in self.blocks:
             x = blk(x)
 
-        if self.global_pool:
+        if self.custom_global_pool:
             x = x[:, 1:, :].mean(dim=1,keepdim=True)  # global pool without cls token
             outcome = self.fc_norm(x)
         else:
-            x = self.norm(x)
+            if hasattr(self, 'norm'):
+                x = self.norm(x)
             outcome = x[:, 0]
 
         return outcome
+
+    def forward(self, x):
+        """Override forward completely to avoid timm 0.9.x forward_head calling timm's global_pool"""
+        x = self.forward_features(x)
+        if hasattr(self, 'head'):
+            x = self.head(x)
+        return x
 
 
 def RETFound_mae(**kwargs):
