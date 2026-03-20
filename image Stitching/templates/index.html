@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RetinaStitch — Retinal Image Stitching</title>
+  <meta name="description"
+    content="Create wide-field retinal mosaics from overlapping fundus photographs using advanced image stitching." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <!-- ───────── Header ───────── -->
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        <path d="M12 2 C12 2 8 6 8 12 C8 18 12 22 12 22" />
+        <path d="M12 2 C12 2 16 6 16 12 C16 18 12 22 12 22" />
+        <line x1="2" y1="12" x2="22" y2="12" opacity=".3" />
+      </svg>
+      <span>RetinaStitch</span>
+    </div>
+    <p class="tagline">Retinal Fundus Image Stitching &mdash; Create wide-field mosaics from overlapping fundus
+      photographs</p>
+  </header>
+
+  <!-- ───────── Main container ───────── -->
+  <main>
+
+    <!-- ══════ Sample Demo Section ══════ -->
+    <section class="card sample-card" id="sample-section">
+      <div class="step-badge sample-badge">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      </div>
+      <h2>Try a Sample</h2>
+      <p class="hint">See retinal image stitching in action — click below to load sample fundus patches and stitch them
+        instantly.</p>
+
+      <div class="sample-preview" id="sample-preview">
+        <div class="sample-imgs" id="sample-imgs">
+          <div class="sample-thumb">
+            <img src="/static/samples/retina_1.jpg" alt="Retina 1" />
+            <span class="sample-label">Retina 1</span>
+          </div>
+          <div class="sample-arrow">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </div>
+          <div class="sample-thumb">
+            <img src="/static/samples/retina_2.jpg" alt="Retina 2" />
+            <span class="sample-label">Retina 2</span>
+          </div>
+          <div class="sample-arrow">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </div>
+          <div class="sample-thumb">
+            <img src="/static/samples/retina_3.jpg" alt="Retina 3" />
+            <span class="sample-label">Retina 3</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls" id="sample-controls">
+        <button id="btn-sample-stitch" class="btn btn-accent btn-lg">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M2 12h20" />
+          </svg>
+          Stitch Sample Retinal Images
+        </button>
+      </div>
+
+      <!-- Sample loader -->
+      <div class="sample-loader" id="sample-loader" style="display:none">
+        <div class="spinner"></div>
+        <p>Stitching retinal patches… Please wait.</p>
+      </div>
+
+      <!-- Sample result -->
+      <div class="sample-result" id="sample-result" style="display:none">
+        <h3>&#10003; Stitched Wide-Field Fundus Mosaic</h3>
+        <div class="result-wrap">
+          <img id="sample-result-img" alt="Stitched retinal mosaic" />
+        </div>
+        <div class="controls">
+          <a id="btn-sample-download" class="btn btn-primary" download="retinal_mosaic.png">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download Mosaic
+          </a>
+          <button id="btn-sample-reset" class="btn btn-ghost">Reset Sample</button>
+        </div>
+      </div>
+
+      <!-- Sample feature visualization (loads after result) -->
+      <div class="viz-section" id="sample-viz" style="display:none">
+        <div class="viz-pipeline-header">
+          <div class="viz-step-badge">&#11044;</div>
+          <h3>Pipeline Visualization &mdash; Feature Detection &amp; Matching</h3>
+        </div>
+
+        <div class="viz-block">
+          <div class="viz-block-header">
+            <span class="viz-block-num">1</span>
+            <h4>SIFT Feature Detection</h4>
+            <span class="viz-block-desc">Keypoints detected on each preprocessed retinal image</span>
+          </div>
+          <div class="viz-grid" id="sample-kp-grid"></div>
+        </div>
+
+        <div class="viz-connector"><span>&#9660;</span></div>
+
+        <div class="viz-block">
+          <div class="viz-block-header">
+            <span class="viz-block-num">2</span>
+            <h4>Feature Matching</h4>
+            <span class="viz-block-desc">Matched features between consecutive image pairs (Lowe's ratio test)</span>
+          </div>
+          <div class="viz-matches" id="sample-match-grid"></div>
+        </div>
+
+        <div class="viz-connector"><span>&#9660;</span></div>
+        <div class="viz-pipeline-footer">
+          <span>Homography estimation &rarr; Warping &rarr; Blending &rarr; Final Mosaic</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider">
+      <span>OR UPLOAD / CAPTURE YOUR OWN</span>
+    </div>
+
+    <!-- ══════ Step 1 — Webcam Capture ══════ -->
+    <section class="card" id="capture-section">
+      <div class="step-badge">1</div>
+      <h2>Capture Retinal Frames</h2>
+      <p class="hint">Use a fundus camera feed or webcam to capture <strong>2 – 6</strong> overlapping retinal images
+        for stitching.</p>
+
+      <div class="video-wrap">
+        <video id="webcam" autoplay playsinline muted></video>
+        <div class="video-overlay" id="video-overlay">
+          <span>Fundus camera feed — click Start to connect</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-start" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          Start Camera
+        </button>
+        <button id="btn-capture" class="btn btn-accent" disabled>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+          Capture Frame
+        </button>
+        <button id="btn-clear" class="btn btn-ghost" disabled>Clear All</button>
+      </div>
+    </section>
+
+    <!-- ══════ Step 2 — Thumbnails ══════ -->
+    <section class="card" id="thumbs-section" style="display:none;">
+      <div class="step-badge">2</div>
+      <h2>Captured Retinal Frames <span id="frame-count" class="count-badge">0</span></h2>
+      <div class="thumbs-grid" id="thumbs-grid"></div>
+      <button id="btn-stitch" class="btn btn-primary btn-lg" disabled>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v20M2 12h20" />
+        </svg>
+        Stitch Retinal Mosaic
+      </button>
+    </section>
+
+    <!-- Loader -->
+    <section class="card loader-card" id="loader-section" style="display:none;">
+      <div class="spinner"></div>
+      <p>Stitching retinal images into a wide-field mosaic&hellip; This may take a few seconds.</p>
+    </section>
+
+    <!-- Result -->
+    <section class="card" id="result-section" style="display:none;">
+      <div class="step-badge done">&#10003;</div>
+      <h2>Stitched Retinal Mosaic</h2>
+      <div class="result-wrap">
+        <img id="result-img" alt="Stitched retinal mosaic" />
+      </div>
+      <div class="controls">
+        <a id="btn-download" class="btn btn-primary" download="retinal_mosaic.png">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download
+        </a>
+        <button id="btn-restart" class="btn btn-ghost">Start Over</button>
+      </div>
+    </section>
+
+    <!-- Feature Visualization (custom capture, loads after result) -->
+    <section class="card" id="viz-section" style="display:none;">
+      <div class="step-badge done">&#11044;</div>
+      <h2>Pipeline Visualization</h2>
+      <p class="hint">Intermediate steps of the stitching pipeline showing how features are detected and matched across images.</p>
+
+      <div class="viz-block">
+        <div class="viz-block-header">
+          <span class="viz-block-num">1</span>
+          <h4>SIFT Feature Detection</h4>
+          <span class="viz-block-desc">Keypoints detected on each preprocessed retinal image</span>
+        </div>
+        <div class="viz-grid" id="custom-kp-grid"></div>
+      </div>
+
+      <div class="viz-connector"><span>&#9660;</span></div>
+
+      <div class="viz-block">
+        <div class="viz-block-header">
+          <span class="viz-block-num">2</span>
+          <h4>Feature Matching</h4>
+          <span class="viz-block-desc">Matched features between consecutive image pairs (Lowe&rsquo;s ratio test)</span>
+        </div>
+        <div class="viz-matches" id="custom-match-grid"></div>
+      </div>
+
+      <div class="viz-connector"><span>&#9660;</span></div>
+      <div class="viz-pipeline-footer">
+        <span>Homography estimation &rarr; Warping &rarr; Blending &rarr; Final Mosaic</span>
+      </div>
+    </section>
+
+    <!-- Error -->
+    <section class="card error-card" id="error-section" style="display:none;">
+      <h2>&#9888;&#65039; Stitching Failed</h2>
+      <p id="error-msg"></p>
+      <button id="btn-retry" class="btn btn-primary">Try Again</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>RetinaStitch &mdash; Retinal Image Stitching &bull; Powered by OpenCV &amp; Flask</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
