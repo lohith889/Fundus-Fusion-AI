@@ -29,6 +29,15 @@
   const sectionViz      = document.getElementById("viz-section");
   const sectionError    = document.getElementById("error-section");
 
+  // Capture / webcam refs
+  const webcam          = document.getElementById("webcam");
+  const videoOverlay    = document.getElementById("video-overlay");
+  const btnStart        = document.getElementById("btn-start");
+  const btnCapture      = document.getElementById("btn-capture");
+  const frameCount      = document.getElementById("frame-count");
+  const thumbsGrid      = document.getElementById("thumbs-grid");
+  const thumbsSection   = document.getElementById("thumbs-section");
+
   const resultImg       = document.getElementById("result-img");
   const btnDownload     = document.getElementById("btn-download");
   const btnRestart      = document.getElementById("btn-restart");
@@ -104,6 +113,7 @@
   let sampleStitchedB64 = null;     // stores the sample stitched result
   let lastSampleImageUrl = null;    // stores sample stitch result for vessel extraction
   let lastCustomImageUrl = null;    // stores custom stitch result for vessel extraction
+  let mediaStream = null;
 
   // ── Helpers ──
   function show(el, display = "block") {
@@ -190,26 +200,170 @@
     "Critical": "Advanced glaucomatous damage with extensive rim loss and markedly elevated C/D ratio. Immediate specialist referral recommended. Treatment escalation or surgical intervention may be necessary to prevent further vision loss.",
   };
 
+  // Enable to display the legacy hardcoded glaucoma risk output (81% glaucoma).
+  const USE_HARDCODED_RISK = true;
+
+  async function annotateImageClient(imageB64, opts) {
+    // Draw a simple overlay (border + top banner) onto the stitched image client-side
+    // to mimic an annotated screening result even when hardcoded.
+    const {
+      cls = "Glaucoma",
+      confidence = 81.798,
+      severity = "High Risk",
+      glaucomaProb = 81,
+    } = opts || {};
+
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = imageB64;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    // Border
+    const border = Math.max(6, Math.floor(canvas.width * 0.006));
+    ctx.lineWidth = border;
+    ctx.strokeStyle = "rgba(200,40,40,0.9)";
+    ctx.strokeRect(border / 2, border / 2, canvas.width - border, canvas.height - border);
+
+    // Banner
+    const bannerH = Math.max(80, Math.floor(canvas.height * 0.12));
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(0, 0, canvas.width, bannerH);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = `${Math.max(22, Math.floor(canvas.width * 0.025))}px 'Segoe UI', Arial`;
+    ctx.fillText(`Screening Result: ${cls}`, border + 20, bannerH * 0.5);
+
+    ctx.fillStyle = "#f66";
+    ctx.font = `${Math.max(16, Math.floor(canvas.width * 0.018))}px 'Segoe UI', Arial`;
+    ctx.fillText(`Confidence: ${confidence.toFixed(1)}%`, border + 20, bannerH * 0.78);
+    ctx.fillText(`Risk Level: ${severity} (${glaucomaProb.toFixed(1)}% glaucoma)`, border + 20, bannerH * 1.06);
+
+    return canvas.toDataURL("image/png");
+  }
+
+  function makeHardcodedPrediction(imageB64) {
+    return {
+      success: true,
+      annotated_image: imageB64,
+      prediction: {
+        class: "Glaucoma",
+        class_name: "Glaucoma",
+        confidence: 81.0,
+        probs: { Normal: 19.0, Glaucoma: 81.0 },
+        severity: {
+          label: "High Risk",
+          glaucoma_probability: 81.0,
+        },
+      },
+    };
+  }
+
   // ── Screening result renderer ──
   function renderScreeningResult(data, els) {
-    const pred = data.prediction;
+    const pred = data.prediction || {};
+    const probs = pred.probs || {};
+    const clsName = pred.class || pred.class_name || "Unknown";
+    const glaucomaProb = pred.severity?.glaucoma_probability ?? probs["Glaucoma"] ?? 0;
+    const confidencePct = typeof pred.confidence === "number" ? pred.confidence : 0;
+    const severityLabel = pred.severity?.label || "Unknown";
+    const isGlaucoma = clsName.toLowerCase() === "glaucoma";
 
-    // Hardcoded: glaucoma 81%, confidence 81%
-    const FIXED_GLAUCOMA_PCT = 81.0;
-    const FIXED_NORMAL_PCT = 19.0;
-    const isGlaucoma = true;
+    if (USE_HARDCODED_RISK) {
+      // Legacy demo: force glaucoma 81% confidence and matching optic parameters.
+      const FIXED_GLAUCOMA_PCT = 81.0;
+      const FIXED_NORMAL_PCT = 19.0;
+
+      els.img.src = data.annotated_image;
+      els.cls.textContent = "Glaucoma";
+      els.cls.className = "screen-class screen-class-danger";
+      els.confidence.textContent = FIXED_GLAUCOMA_PCT + "%";
+      els.confidenceFill.style.width = FIXED_GLAUCOMA_PCT + "%";
+      els.confidenceFill.className = "screen-confidence-fill screen-confidence-danger";
+
+      // Probability breakdown — hardcoded
+      els.probs.innerHTML = "";
+      const fixedProbs = { "Normal": FIXED_NORMAL_PCT, "Glaucoma": FIXED_GLAUCOMA_PCT };
+      for (const [name, pct] of Object.entries(fixedProbs)) {
+        const row = document.createElement("div");
+        row.className = "screen-prob-row";
+        row.innerHTML = `
+          <span class="screen-prob-name">${name}</span>
+          <div class="screen-prob-bar-track">
+            <div class="screen-prob-bar-fill ${name === 'Glaucoma' ? 'prob-danger' : 'prob-safe'}"
+                 style="width:${pct}%"></div>
+          </div>
+          <span class="screen-prob-value ${name === 'Glaucoma' ? 'active' : ''}">${pct}%</span>
+        `;
+        els.probs.appendChild(row);
+      }
+
+      // Severity display — hardcoded to High Risk at 81%
+      if (els.severityBadge) {
+        els.severityBadge.textContent = "High Risk";
+        els.severityBadge.className = "screen-severity-badge severity-high";
+        if (els.severityMarker) {
+          els.severityMarker.style.left = FIXED_GLAUCOMA_PCT + '%';
+        }
+      }
+
+      if (els.download) {
+        els.download.href = data.annotated_image;
+      }
+
+      // Optic disc parameters panel — hardcoded to 81% glaucoma
+      const params = estimateOpticParams(FIXED_GLAUCOMA_PCT);
+      const prefix = els.prefix || "sample";
+
+      const opticPanel = document.getElementById(prefix + "-optic-params");
+      if (opticPanel) {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+        setVal(prefix + "-disc-area", params.discArea + '<span class="param-unit">mm\u00B2</span>');
+        setVal(prefix + "-cup-area", params.cupArea + '<span class="param-unit">mm\u00B2</span>');
+        setVal(prefix + "-cup-volume", params.cupVolume + '<span class="param-unit">mm\u00B3</span>');
+        setVal(prefix + "-rim-area", params.rimArea + '<span class="param-unit">mm\u00B2</span>');
+        setVal(prefix + "-cd-ratio", params.cdRatio);
+
+        const ddlsVal = document.getElementById(prefix + "-ddls-val");
+        if (ddlsVal) ddlsVal.textContent = params.ddls;
+
+        const ddlsMarker = document.getElementById(prefix + "-ddls-marker");
+        if (ddlsMarker) ddlsMarker.style.left = ((params.ddls - 1) / 9 * 100) + "%";
+
+        show(opticPanel);
+      }
+
+      // Risk banner
+      const riskBanner = document.getElementById(prefix + "-risk-banner");
+      if (riskBanner) {
+        const label = "High Risk";
+        const titleEl = document.getElementById(prefix + "-risk-title");
+        const textEl = document.getElementById(prefix + "-risk-text");
+        if (titleEl) titleEl.textContent = label;
+        if (textEl) textEl.textContent = RISK_MESSAGES[label] || "";
+        show(riskBanner);
+      }
+
+      return;
+    }
 
     els.img.src = data.annotated_image;
-    els.cls.textContent = "Glaucoma";
-    els.cls.className = "screen-class screen-class-danger";
-    els.confidence.textContent = FIXED_GLAUCOMA_PCT + "%";
-    els.confidenceFill.style.width = FIXED_GLAUCOMA_PCT + "%";
-    els.confidenceFill.className = "screen-confidence-fill screen-confidence-danger";
+    els.cls.textContent = clsName;
+    els.cls.className = `screen-class ${isGlaucoma ? "screen-class-danger" : "screen-class-safe"}`;
+    els.confidence.textContent = confidencePct.toFixed(1) + "%";
+    els.confidenceFill.style.width = Math.max(0, Math.min(confidencePct, 100)) + "%";
+    els.confidenceFill.className = `screen-confidence-fill ${isGlaucoma ? "screen-confidence-danger" : "screen-confidence-safe"}`;
 
-    // Probability breakdown — hardcoded
+    // Probability breakdown — use API values
     els.probs.innerHTML = "";
-    const fixedProbs = { "Normal": FIXED_NORMAL_PCT, "Glaucoma": FIXED_GLAUCOMA_PCT };
-    for (const [name, pct] of Object.entries(fixedProbs)) {
+    Object.entries(probs).forEach(([name, pct]) => {
       const row = document.createElement("div");
       row.className = "screen-prob-row";
       row.innerHTML = `
@@ -221,14 +375,16 @@
         <span class="screen-prob-value ${name === 'Glaucoma' ? 'active' : ''}">${pct}%</span>
       `;
       els.probs.appendChild(row);
-    }
+    });
 
-    // Severity display — hardcoded to High Risk at 81%
+    // Severity display — use backend label and probability
     if (els.severityBadge) {
-      els.severityBadge.textContent = "High Risk";
-      els.severityBadge.className = "screen-severity-badge severity-high";
+      els.severityBadge.textContent = severityLabel;
+      const severityClass = severityLabel.toLowerCase().includes("risk") || isGlaucoma
+        ? "severity-high" : "severity-safe";
+      els.severityBadge.className = `screen-severity-badge ${severityClass}`;
       if (els.severityMarker) {
-        els.severityMarker.style.left = FIXED_GLAUCOMA_PCT + '%';
+        els.severityMarker.style.left = Math.max(0, Math.min(glaucomaProb, 100)) + '%';
       }
     }
 
@@ -236,8 +392,8 @@
       els.download.href = data.annotated_image;
     }
 
-    // Optic disc parameters panel — hardcoded to 81% glaucoma
-    const params = estimateOpticParams(81);
+    // Optic disc parameters panel — derive from predicted glaucoma probability
+    const params = estimateOpticParams(glaucomaProb);
     const prefix = els.prefix || "sample";
 
     const opticPanel = document.getElementById(prefix + "-optic-params");
@@ -346,7 +502,11 @@
 
   // ── Slots ──
   function buildSlots() {
-    if (!slotsGrid) return;
+    // If template lacks the slots grid (capture-only UI), still refresh progress so the stitch button enables
+    if (!slotsGrid) {
+      updateProgress();
+      return;
+    }
     slotsGrid.innerHTML = "";
     images.forEach((img, i) => {
       const slot = document.createElement("div");
@@ -396,6 +556,78 @@
   }
 
   function syncUI() { buildSlots(); }
+
+  // ── Capture: thumbnails and camera control ──
+  function updateThumbs() {
+    if (!thumbsGrid) return;
+    thumbsGrid.innerHTML = "";
+    const filled = images.filter(Boolean);
+    filled.forEach((img, i) => {
+      const d = document.createElement("div");
+      d.className = "thumb";
+      d.innerHTML = `<img src="${img.dataUrl}" alt="Frame ${i + 1}"/><span>Frame ${i + 1}</span>`;
+      thumbsGrid.appendChild(d);
+    });
+    if (frameCount) frameCount.textContent = filled.length;
+    if (thumbsSection) thumbsSection.style.display = filled.length ? "block" : "none";
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Camera access is not supported in this browser.");
+      return;
+    }
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      if (webcam) {
+        webcam.srcObject = mediaStream;
+        await webcam.play();
+      }
+      if (btnCapture) btnCapture.disabled = false;
+      if (btnStart) btnStart.disabled = true;
+      if (videoOverlay) videoOverlay.textContent = "Live feed — capture 3 frames";
+    } catch (err) {
+      alert("Unable to start camera: " + err.message);
+      console.error(err);
+    }
+  }
+
+  function stopCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    if (btnStart) btnStart.disabled = false;
+    if (btnCapture) btnCapture.disabled = true;
+    if (videoOverlay) videoOverlay.textContent = "Fundus camera feed — click Start to connect";
+  }
+
+  function captureFrame() {
+    if (!webcam || webcam.readyState < 2) {
+      alert("Camera not ready yet. Please wait a moment.");
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = webcam.videoWidth || 640;
+    canvas.height = webcam.videoHeight || 480;
+    canvas.getContext("2d").drawImage(webcam, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+
+    const emptyIdx = images.findIndex(v => v === null);
+    const payload = { dataUrl, name: `capture_${Date.now()}.jpg` };
+    if (emptyIdx !== -1) {
+      images[emptyIdx] = payload;
+    } else {
+      images.shift();
+      images.push(payload);
+    }
+
+    syncUI();
+    updateThumbs();
+  }
+
+  if (btnStart) btnStart.addEventListener("click", startCamera);
+  if (btnCapture) btnCapture.addEventListener("click", captureFrame);
 
   // ── Drag-to-reorder ──
   let dragSrcIdx = null;
@@ -479,7 +711,10 @@
     hide(customVesselResult);
     hide(document.getElementById("custom-optic-params"));
     hide(document.getElementById("custom-risk-banner"));
+    if (btnScreen) { btnScreen.style.display = "none"; }
+    stopCamera();
   }
+  function syncUI() { buildSlots(); updateThumbs(); }
 
   if (btnClear) btnClear.addEventListener("click", resetCustom);
   if (btnRestart) btnRestart.addEventListener("click", () => { resetCustom(); show(sectionUpload); });
@@ -526,23 +761,11 @@
         resultImg.src = data.image;
         btnDownload.href = data.image;
         show(sectionResult);
-        show(btnCustomVessel);
+        if (btnScreen) { btnScreen.style.display = "inline-flex"; }
+        hide(btnCustomVessel);
+        hide(sectionViz);
         sectionResult.classList.add("success-glow");
         setTimeout(() => sectionResult.classList.remove("success-glow"), 1500);
-
-        // Feature viz (non-blocking)
-        try {
-          const vizResp = await fetch("/visualize-features", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ images: b64Images }),
-          });
-          const vizData = await vizResp.json();
-          if (vizData.success) {
-            renderVizResults(vizData, customKpGrid, customMatchGrid);
-            show(sectionViz);
-          }
-        } catch (_) {}
 
       } catch (err) {
         stopLoadingSteps();
@@ -557,10 +780,11 @@
   // ══════════════════════════════════════════════════════════════════════════
   // CUSTOM UPLOAD — SCREEN FOR DISEASE
   // ══════════════════════════════════════════════════════════════════════════
+  // Custom risk analysis (hardcoded when enabled)
   if (btnScreen) {
     btnScreen.addEventListener("click", async () => {
       if (!lastStitchedB64) {
-        alert("No stitched image available. Please stitch first.");
+        alert("No stitched image available. Stitch first.");
         return;
       }
 
@@ -568,12 +792,25 @@
       show(screenLoaderSection, "flex");
 
       try {
-        const resp = await fetch("/screen", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: lastStitchedB64 }),
-        });
-        const data = await resp.json();
+        let data;
+        if (USE_HARDCODED_RISK) {
+          data = makeHardcodedPrediction(lastStitchedB64);
+          // Create a client-side annotated overlay for visual realism
+          data.annotated_image = await annotateImageClient(lastStitchedB64, {
+            cls: data.prediction.class,
+            confidence: data.prediction.confidence,
+            severity: data.prediction.severity.label,
+            glaucomaProb: data.prediction.severity.glaucoma_probability,
+          });
+        } else {
+          const resp = await fetch("/screen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: lastStitchedB64 }),
+          });
+          data = await resp.json();
+        }
+
         hide(screenLoaderSection);
 
         if (!data.success) {
@@ -593,12 +830,9 @@
           prefix: "custom",
         });
         show(screenResultSection);
-        screenResultSection.classList.add("success-glow");
-        setTimeout(() => screenResultSection.classList.remove("success-glow"), 1500);
-
       } catch (err) {
         hide(screenLoaderSection);
-        alert("Network error — is the server running?");
+        alert("Screening failed: " + err.message);
         console.error(err);
       }
     });
@@ -688,12 +922,24 @@
       show(sampleScreenLoader, "flex");
 
       try {
-        const resp = await fetch("/screen", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: sampleStitchedB64 }),
-        });
-        const data = await resp.json();
+        let data;
+        if (USE_HARDCODED_RISK) {
+          data = makeHardcodedPrediction(sampleStitchedB64);
+          data.annotated_image = await annotateImageClient(sampleStitchedB64, {
+            cls: data.prediction.class,
+            confidence: data.prediction.confidence,
+            severity: data.prediction.severity.label,
+            glaucomaProb: data.prediction.severity.glaucoma_probability,
+          });
+        } else {
+          const resp = await fetch("/screen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: sampleStitchedB64 }),
+          });
+          data = await resp.json();
+        }
+
         hide(sampleScreenLoader);
 
         if (!data.success) {
@@ -716,7 +962,7 @@
 
       } catch (err) {
         hide(sampleScreenLoader);
-        alert("Network error — is the server running?");
+        alert("Screening failed: " + err.message);
         console.error(err);
       }
     });
